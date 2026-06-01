@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantumFlash — Gravador de Firmware Simplificado</title>
+    
+    <!-- Google Fonts: Inter para interface, Fira Code para logs -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS Estilos Customizados com Login e Admin -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Node.js Buffer Polyfill for esptool-js -->
+    <script src="https://bundle.run/buffer@6.0.3"></script>
+    <script>
+      window.Buffer = window.buffer.Buffer;
+    </script>
+</head>
+<body>
+    
+    <!-- Login Screen Overlay -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="card glass shadow-neon login-card">
+            <div class="logo-area">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>Quantum<span>Flash</span></h2>
+            </div>
+            <p class="subtitle">Faça login para acessar o gravador e painel de firmwares.</p>
+            
+            <div class="form-group">
+                <label for="username">Usuário</label>
+                <input type="text" id="username" placeholder="Digite seu usuário..." autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <input type="password" id="password" placeholder="Digite sua senha..." autocomplete="current-password">
+            </div>
+            
+            <div id="login-error" class="login-error hidden-block">
+                Usuário ou senha incorretos!
+            </div>
+            
+            <button id="btn-login" class="btn btn-primary btn-glow btn-full">
+                Entrar no Sistema
+            </button>
+            
+            <div class="login-footer-info">
+                <p>Admin: admin / admin123</p>
+                <p>Operador: operador / operador123</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container (Hidden until logged in) -->
+    <div class="app-container hidden-block" id="app-content">
+        
+        <!-- Header / User Bar -->
+        <header class="user-header">
+            <div class="user-info-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="user-icon">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <span>Acesso: <strong id="logged-user-role">Operador</strong></span>
+            </div>
+            <button id="btn-logout" class="btn-logout" title="Sair do sistema">
+                <span>Sair</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+                </svg>
+            </button>
+        </header>
+
+        <main class="flasher-card-wrapper">
+            
+            <!-- Flasher Card -->
+            <div class="card glass shadow-neon main-card">
+                
+                <!-- Logo & Header -->
+                <div class="logo-area">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h2>Quantum<span>Flash</span></h2>
+                </div>
+                
+                <p class="subtitle">Selecione o firmware desejado e conecte sua placa via USB para iniciar a gravação automática.</p>
+                
+                <!-- Status Badge -->
+                <div class="status-indicator">
+                    <span class="status-label">Status:</span>
+                    <span id="system-status" class="status-badge status-disconnected">Aguardando Seleção</span>
+                    <span id="web-serial-check" class="api-check">Verificando Web Serial...</span>
+                </div>
+
+                <!-- Select Firmware Dropdown -->
+                <div class="form-group">
+                    <label for="firmware-select">Escolha o Firmware para Gravar</label>
+                    <select id="firmware-select">
+                        <option value="" disabled selected>-- Selecione uma opção --</option>
+                        <!-- Options will be populated dynamically from firmwares.json -->
+                        <option value="custom">Carregar Arquivo Personalizado (.bin)</option>
+                    </select>
+                </div>
+
+                <!-- Custom File Inputs Block (Hidden by default, shown only when custom is selected) -->
+                <div id="custom-file-block" class="hidden-block">
+                    <div class="form-group">
+                        <label for="custom-file-input">Selecione o arquivo de firmware (.bin)</label>
+                        <div class="file-picker-wrapper">
+                            <input type="file" id="custom-file-input" accept=".bin">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-offset-input">Endereço de Gravação (Offset em Hex)</label>
+                        <div class="file-address">
+                            <span class="file-address-prefix">0x</span>
+                            <input type="text" id="custom-offset-input" value="0" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Firmware Description Card -->
+                <div id="firmware-desc-card" class="firmware-desc-card hidden-block">
+                    <h4 id="desc-title">Título</h4>
+                    <p id="desc-text">Descrição técnica sobre o firmware e as partições.</p>
+                </div>
+
+                <!-- Actions Group -->
+                <div class="action-area">
+                    <button id="btn-flash" class="btn btn-primary btn-glow btn-full" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke-linecap="round"/>
+                        </svg>
+                        Conectar e Gravar Firmware
+                    </button>
+                </div>
+
+                <!-- Progress Section (Hidden by default) -->
+                <div id="progress-block" class="progress-block hidden-block">
+                    <div class="progress-header">
+                        <span id="progress-status-text">Gravando...</span>
+                        <span id="progress-percentage">0%</span>
+                    </div>
+                    <div class="progress-track">
+                        <div id="progress-bar-fill" class="progress-fill"></div>
+                    </div>
+                    <div class="progress-meta">
+                        <span id="progress-speed">0 kB/s</span>
+                        <span id="progress-bytes">0 KB / 0 KB</span>
+                    </div>
+                </div>
+
+                <!-- Simple Logs Display (Small collapsed section for security and troubleshooting) -->
+                <div class="log-accordion">
+                    <button class="log-toggle-btn" id="btn-toggle-logs">
+                        <span>Mostrar Logs de Gravação</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div id="log-container" class="log-container hidden-block">
+                        <div id="log-terminal" class="log-terminal">
+                            <div class="log-line system-line">[QuantumFlash] Inicializado. Aguardando seleção de firmware.</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Administrator Dashboard Panel (Visible ONLY for admins) -->
+            <div id="admin-panel" class="hidden-block">
+                
+                <div class="admin-main-header" style="text-align: center; margin-top: 16px;">
+                    <div class="admin-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#b100ff" stroke-width="2.5" class="admin-icon-main">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <h3 class="gradient-text-admin">Painel do Administrador</h3>
+                    </div>
+                    <p class="admin-subtitle" style="margin-bottom: 24px;">Gerencie firmwares cadastrados e controle os usuários do sistema.</p>
+                </div>
+
+                <!-- CARD 1: GERENCIAMENTO DE USUÁRIOS -->
+                <div class="card glass shadow-neon admin-card" id="admin-users-card" style="margin-bottom: 24px;">
+                    <div class="admin-sec-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span>Gerenciamento de Usuários</span>
+                    </div>
+                    
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Usuário</th>
+                                    <th>Nome</th>
+                                    <th>Função</th>
+                                    <th style="width: 105px; text-align: center;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-user-list-body">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Form to Add/Edit Users inline -->
+                    <form id="admin-user-form" onsubmit="return false;" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                        <h4 id="admin-user-form-title" style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Cadastrar Novo Usuário</h4>
+                        
+                        <input type="hidden" id="user-edit-mode" value="create">
+                        
+                        <div class="form-group">
+                            <label for="admin-user-username">Nome de Usuário (Login)</label>
+                            <input type="text" id="admin-user-username" placeholder="Apenas letras e números..." required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="admin-user-display">Nome de Exibição (Ex: João Silva)</label>
+                            <input type="text" id="admin-user-display" placeholder="Nome visível no cabeçalho..." required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="admin-user-role">Função (Role)</label>
+                                <select id="admin-user-role">
+                                    <option value="operator" selected>Operador</option>
+                                    <option value="admin">Administrador</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="admin-user-password">Senha</label>
+                                <input type="password" id="admin-user-password" placeholder="Senha de acesso..." required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="admin-user-password-confirm">Confirmar Senha</label>
+                            <input type="password" id="admin-user-password-confirm" placeholder="Confirme a senha..." required>
+                        </div>
+                        
+                        <div class="checkbox-row" style="margin-top: -8px; margin-bottom: 20px;">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="show-user-passwords">
+                                <span class="checkmark"></span>
+                                Mostrar senhas digitadas
+                            </label>
+                        </div>
+                        
+                        <button id="btn-admin-save-user" class="btn btn-admin btn-glow btn-full" style="margin-top: 8px;">
+                            Salvar Usuário
+                        </button>
+                        <button id="btn-admin-cancel-user-edit" class="btn btn-cancel btn-full hidden-block">
+                            Cancelar Edição
+                        </button>
+                    </form>
+                </div>
+
+                <!-- CARD 2: FIRMWARES CADASTRADOS -->
+                <div class="card glass shadow-neon admin-card" id="admin-firmwares-card" style="margin-bottom: 24px;">
+                    <div class="admin-sec-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                        <span>Firmwares Cadastrados</span>
+                    </div>
+                    <div class="admin-table-wrapper">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Chip</th>
+                                    <th>Offset</th>
+                                    <th style="width: 105px; text-align: center;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-firmware-list-body">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- CARD 3: CADASTRAR / EDITAR FIRMWARE -->
+                <div class="card glass shadow-neon admin-card" id="admin-upload-card" style="margin-bottom: 24px;">
+                    <form id="admin-upload-form" onsubmit="return false;">
+                        <h4 id="admin-form-title" style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Cadastrar Novo Firmware</h4>
+                        
+                        <div class="form-group">
+                            <label for="admin-fw-key">Identificador Único (Ex: esp32-wled-v2)</label>
+                            <input type="text" id="admin-fw-key" placeholder="Apenas letters, números e hífen..." required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="admin-fw-name">Nome de Exibição (Ex: ESP32 — WLED v1.0)</label>
+                            <input type="text" id="admin-fw-name" placeholder="Nome visível na lista..." required>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="admin-fw-chip">Microcontrolador (Chip)</label>
+                                <select id="admin-fw-chip">
+                                    <option value="ESP32" selected>ESP32</option>
+                                    <option value="ESP8266">ESP8266</option>
+                                    <option value="ESP32-S3">ESP32-S3</option>
+                                    <option value="ESP32-C3">ESP32-C3</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="admin-fw-offset">Endereço Offset (Hex)</label>
+                                <div class="file-address">
+                                    <span class="file-address-prefix">0x</span>
+                                    <input type="text" id="admin-fw-offset" value="0" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="checkbox-row">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="admin-fw-erase">
+                                <span class="checkmark"></span>
+                                Apagar flash antes de gravar (Erase All)
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="admin-fw-desc">Descrição do Firmware</label>
+                            <textarea id="admin-fw-desc" placeholder="Adicione explicações rápidas de conexões ou finalidade do projeto..." rows="3" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label id="admin-file-label" for="admin-file-input">Selecionar Arquivo Binário (.bin)</label>
+                            <div class="file-picker-wrapper">
+                                <input type="file" id="admin-file-input" accept=".bin" required>
+                            </div>
+                        </div>
+
+                        <button id="btn-admin-submit" class="btn btn-admin btn-glow btn-full">
+                            Salvar e Publicar Firmware
+                        </button>
+                        <button id="btn-admin-cancel-edit" class="btn btn-cancel btn-full hidden-block">
+                            Cancelar Edição
+                        </button>
+                    </form>
+
+                    <!-- Admin Action Progress -->
+                    <div id="admin-progress-block" class="admin-progress-block hidden-block">
+                        <p id="admin-progress-text">Enviando arquivos...</p>
+                        <div class="admin-progress-track">
+                            <div id="admin-progress-bar-fill" class="admin-progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+        
+    </div>
+    
+    <!-- Script Principal -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

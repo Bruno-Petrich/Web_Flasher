@@ -1,0 +1,34 @@
+ATENÇÃO - INSTRUÇÕES PARA ARQUIVOS DE FIRMWARE
+=============================================================================
+
+Esta pasta "firmwares" deve conter os arquivos binários (.bin) reais correspondentes 
+às opções do seletor do QuantumFlash.
+
+Por questões de tamanho e direitos autorais, os arquivos criados inicialmente nesta 
+pasta são apenas MOCKS/TEMPLATES de texto. Para gravar os firmwares reais em seus 
+microcontroladores, você deve substituir estes arquivos pelos binários oficiais:
+
+1. ESP32 MicroPython:
+   - Baixe em: https://micropython.org/download/esp32/
+   - Nomeie o arquivo como: esp32-micropython.bin
+   - Cole nesta pasta, substituindo o atual.
+
+2. ESP32 WLED:
+   - Baixe em: https://github.com/Aircoookie/WLED/releases (ex: WLED_xxxx_ESP32.bin)
+   - Nomeie o arquivo como: esp32-wled.bin
+   - Cole nesta pasta, substituindo o atual.
+
+3. ESP32 ESPHome Bluetooth Proxy:
+   - Compile no ESPHome e salve o arquivo binário localmente.
+   - Nomeie o arquivo como: esp32-esphome-bt.bin
+   - Cole nesta pasta, substituindo o atual.
+
+4. ESP8266 NodeMCU:
+   - Compile ou baixe seu binário NodeMCU.
+   - Nomeie o arquivo como: esp8266-nodemcu.bin
+   - Cole nesta pasta, substituindo o atual.
+
+Nota: Se você quiser apenas testar a interface e o funcionamento do gravador sem 
+gravar um firmware real, os arquivos mock atuais podem ser enviados à placa, porém 
+o microcontrolador não inicializará nenhum programa após o reset, pois os arquivos 
+não contêm código de máquina executável válido.

@@ -1,0 +1,10 @@
+# Local database containing credentials
+users.json
+
+# Python caching
+__pycache__/
+*.pyc
+
+# OS metadata
+.DS_Store
+Thumbs.db

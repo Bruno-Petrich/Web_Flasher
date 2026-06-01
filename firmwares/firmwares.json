@@ -1,0 +1,26 @@
+{
+    "chute-a-gol-mestre-s3": {
+        "name": "chute a gol mestre V1.1",
+        "chip": "ESP32-S3",
+        "offset": "0x0",
+        "eraseAll": false,
+        "url": "firmwares/Mestre_Chute_a_gol_merged.bin",
+        "desc": "adicionado botões de start e reset na pagina web"
+    },
+    "teste-s3-led-ap": {
+        "name": "teste-s3-led-ap",
+        "chip": "ESP32-S3",
+        "offset": "0x0",
+        "eraseAll": false,
+        "url": "firmwares/teste_S3mini_FitaLed_AP.ino.merged.bin",
+        "desc": "Teste de wifi com Acess Point"
+    },
+    "chute-a-gol-argola": {
+        "name": "Chute a Gol Argola",
+        "chip": "ESP32-S3",
+        "offset": "0x0",
+        "eraseAll": false,
+        "url": "firmwares/Argolas_Chute_a_gol.ino.merged.bin",
+        "desc": "Argola usando o ID 01"
+    }
+}
