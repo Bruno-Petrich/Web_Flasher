@@ -604,7 +604,7 @@ async function publishNewFirmware() {
         }
         
         // POST to backend API
-        const response = await fetch("/api/add-firmware", {
+        const response = await fetch("api/add-firmware", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -731,7 +731,7 @@ const adminFirmwareListBody = document.getElementById("admin-firmware-list-body"
 
 async function loadUsers() {
     try {
-        const res = await fetch("/api/users?t=" + Date.now());
+        const res = await fetch("api/users?t=" + Date.now());
         if (!res.ok) throw new Error(`HTTP Erro: ${res.status}`);
         credentials = await res.json();
         
@@ -855,7 +855,7 @@ async function saveUser() {
     }
     
     try {
-        const res = await fetch("/api/save-user", {
+        const res = await fetch("api/save-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, display, role, password })
@@ -877,7 +877,7 @@ async function deleteUser(username) {
     if (!confirm(`Deseja realmente excluir o usuário "${username}"?`)) return;
     
     try {
-        const res = await fetch("/api/delete-user", {
+        const res = await fetch("api/delete-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username })
@@ -986,7 +986,7 @@ async function deleteFirmware(key) {
     if (!confirm(`Deseja realmente excluir o firmware "${firmwares[key].name}"?`)) return;
     
     try {
-        const res = await fetch("/api/delete-firmware", {
+        const res = await fetch("api/delete-firmware", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ key })
