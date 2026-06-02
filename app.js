@@ -14,6 +14,7 @@ let port = null;
 let transport = null;
 let esploader = null;
 let isFlashing = false;
+let isStaticMode = false;
 
 // DOM Elements selection
 const loginOverlay = document.getElementById("login-overlay");
@@ -152,6 +153,15 @@ function applySessionRole(role) {
         
         // Show Admin dashboard
         adminPanel.classList.remove("hidden-block");
+        
+        const elWarning = document.getElementById("admin-static-warning");
+        if (elWarning) {
+            if (isStaticMode) {
+                elWarning.classList.remove("hidden-block");
+            } else {
+                elWarning.classList.add("hidden-block");
+            }
+        }
         
         renderUserAdminList();
         renderFirmwareAdminList();
@@ -554,6 +564,11 @@ function setupAdminForm() {
 }
 
 async function publishNewFirmware() {
+    if (isStaticMode) {
+        alert("Modo Estático: O cadastro de novos firmwares requer o servidor local ativo (server.py).\n\nPara atualizar o catálogo online, coloque o arquivo binário na pasta 'firmwares/' e atualize o 'firmwares.json' no seu repositório do GitHub.");
+        return;
+    }
+
     // Validate inputs
     const key = adminFwKey.value.trim();
     const name = adminFwName.value.trim();
@@ -734,12 +749,14 @@ async function loadUsers() {
         const res = await fetch("api/users?t=" + Date.now());
         if (!res.ok) throw new Error(`HTTP Erro: ${res.status}`);
         credentials = await res.json();
+        isStaticMode = false;
         
         if (currentRole === "admin") {
             renderUserAdminList();
         }
     } catch (err) {
         console.error("Falha ao ler banco de usuários:", err);
+        isStaticMode = true;
         credentials = {
             "admin": { password: "admin123", role: "admin", display: "Administrador" }
         };
@@ -749,6 +766,19 @@ async function loadUsers() {
 function renderUserAdminList() {
     if (!adminUserListBody) return;
     adminUserListBody.innerHTML = "";
+    
+    if (isStaticMode) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.style.textAlign = "center";
+        td.style.color = "#ffaa00";
+        td.style.padding = "16px";
+        td.textContent = "Servidor local offline. Gerenciamento de usuários desativado.";
+        tr.appendChild(td);
+        adminUserListBody.appendChild(tr);
+        return;
+    }
     
     const currentUser = sessionStorage.getItem("quantumflash_username") || "";
     
@@ -838,6 +868,11 @@ function cancelUserEdit() {
 }
 
 async function saveUser() {
+    if (isStaticMode) {
+        alert("Modo Estático: O gerenciamento de usuários requer o servidor local ativo (server.py).");
+        return;
+    }
+
     const username = adminUserUsernameInput.value.trim().toLowerCase();
     const display = adminUserDisplayInput.value.trim();
     const role = adminUserRoleSelect.value;
@@ -874,6 +909,11 @@ async function saveUser() {
 }
 
 async function deleteUser(username) {
+    if (isStaticMode) {
+        alert("Modo Estático: O gerenciamento de usuários requer o servidor local ativo (server.py).");
+        return;
+    }
+
     if (!confirm(`Deseja realmente excluir o usuário "${username}"?`)) return;
     
     try {
@@ -983,6 +1023,11 @@ function cancelFirmwareEdit() {
 }
 
 async function deleteFirmware(key) {
+    if (isStaticMode) {
+        alert("Modo Estático: A exclusão de firmwares requer o servidor local ativo (server.py).\n\nPara remover do catálogo online, edite o arquivo 'firmwares.json' e remova o arquivo binário do repositório.");
+        return;
+    }
+
     if (!confirm(`Deseja realmente excluir o firmware "${firmwares[key].name}"?`)) return;
     
     try {
