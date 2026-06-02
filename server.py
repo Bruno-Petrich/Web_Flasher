@@ -6,7 +6,7 @@ import sys
 import json
 import base64
 
-PORT = 8000
+PORT = int(os.environ.get("PORT", 8000))
 USERS_FILE = 'users.json'
 
 def init_users_file():
